@@ -1,0 +1,124 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  clerkID   String   @unique
+  name      String?
+  bio       String?
+  image     String?
+  location  String?
+  website   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  posts    Post[] // Posts created by this user
+  comments Comment[] // Comments created by this user
+  likes    Like[] // Likes created by this user
+
+  followers Follows[] @relation("Followers") // Users who follow this user
+  following Follows[] @relation("Following") // Users this user follows
+
+  notifications        Notification[] @relation("UserNotifications") // Notifications received by this user
+  notificationsCreated Notification[] @relation("UserNotificationsCreator") // Notifications created by this user
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  // The author-authorId relationship explained:
+  // 1. authorId: The foreign key stored in the database (references User.id)
+  // 2. author: Virtual field for Prisma queries (not stored in DB)
+  // 3. @relation: Tells Prisma how to join tables when querying
+  //    - fields: [authorId] = which field in THIS model contains the foreign key
+  //    - references: [id] = which field in the USER model is being referenced
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId String
+
+  comments      Comment[] // Comments on this post
+  likes         Like[] // Likes on this post
+  notifications Notification[] // Notifications related to this post
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  authorId  String // Foreign key to User
+  postId    String // Foreign key to Post
+  createdAt DateTime @default(now())
+
+  // Relations
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  // Create a composite index on authorId and postId for faster queries
+  // This improves performance when looking up comments by author and/or post
+  @@index([authorId, postId])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  postId    String // Foreign key to Post
+  userId    String // Foreign key to User
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId]) // Ensure a user can only like a post once
+  // Create a composite index on userId and postId for faster queries
+  @@index([userId, postId])
+}
+
+model Follows {
+  followerId  String // User who follows
+  followingId String // User being followed
+  createdAt   DateTime @default(now())
+
+  // Relations
+  follower  User @relation("Followers", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId]) // Composite primary key for uniqueness
+  @@index([followerId, followingId]) // Index for faster lookups
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType // Type of notification (e.g., like, comment, follow)
+  userId    String // User receiving the notification
+  postId    String? // Optional post related to the notification
+  createdAt DateTime         @default(now())
+
+  // Relations
+  user User  @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  post Post? @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  // Notifications created by this user
+  creator User @relation("UserNotificationsCreator", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, postId]) // Index for faster lookups
+}
