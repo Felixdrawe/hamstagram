@@ -70,8 +70,9 @@ model Comment {
   createdAt DateTime @default(now())
 
   // Relations
-  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  post          Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  notifications Notification[]
 
   // Create a composite index on authorId and postId for faster queries
   // This improves performance when looking up comments by author and/or post
@@ -108,17 +109,31 @@ model Follows {
 
 model Notification {
   id        String           @id @default(cuid())
-  type      NotificationType // Type of notification (e.g., like, comment, follow)
-  userId    String // User receiving the notification
-  postId    String? // Optional post related to the notification
+  userId    String // Foreign key to User
+  creatorId String // Foreign key to User who created the notification
+  type      NotificationType // Type of notification (like, comment, follow, etc.)
+  postId    String? // Optional foreign key to Post (if applicable)
+  commentId String? // Optional foreign key to Comment (if applicable)
   createdAt DateTime         @default(now())
 
   // Relations
-  user User  @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  // The user who receives this notification
+  user User @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
+  // The user who triggered this notification (e.g., who liked, commented, followed)
+  creator User @relation("UserNotificationsCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  // The post this notification is about (optional, only for post-related notifications)
   post Post? @relation(fields: [postId], references: [id], onDelete: Cascade)
 
-  // Notifications created by this user
-  creator User @relation("UserNotificationsCreator", fields: [userId], references: [id], onDelete: Cascade)
+  // The comment this notification is about (optional, only for comment-related notifications)
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
-  @@index([userId, postId]) // Index for faster lookups
+  @@index([userId, createdAt]) // Index for faster lookups by user
+}
+
+enum NotificationType {
+  LIKE
+  COMMENT
+  FOLLOW
 }
