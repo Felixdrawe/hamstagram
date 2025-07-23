@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -18,7 +17,7 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   username  String   @unique
-  clerkID   String   @unique
+  clerkId   String   @unique
   name      String?
   bio       String?
   image     String?
@@ -41,7 +40,7 @@ model User {
 
 model Post {
   id        String   @id @default(cuid())
-  title     String
+  authorId  String
   content   String?
   image     String?
   createdAt DateTime @default(now())
@@ -54,8 +53,7 @@ model Post {
   // 3. @relation: Tells Prisma how to join tables when querying
   //    - fields: [authorId] = which field in THIS model contains the foreign key
   //    - references: [id] = which field in the USER model is being referenced
-  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId String
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   comments      Comment[] // Comments on this post
   likes         Like[] // Likes on this post
@@ -99,9 +97,9 @@ model Follows {
   followingId String // User being followed
   createdAt   DateTime @default(now())
 
-  // Relations
-  follower  User @relation("Followers", fields: [followerId], references: [id], onDelete: Cascade)
-  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  // Relations - CORRECTED:
+  follower  User @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@id([followerId, followingId]) // Composite primary key for uniqueness
   @@index([followerId, followingId]) // Index for faster lookups

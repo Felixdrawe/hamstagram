@@ -1,12 +1,20 @@
 import { PrismaClient } from '@prisma/client';
-import { withAccelerate } from '@prisma/extension-accelerate';
 
-// Prevent multiple instances of Prisma Client in development
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
+// PrismaClient is attached to the `global` object in development to prevent
+// exhausting your database connection limit.
+// Learn more: https://pris.ly/d/help/next-js-best-practices
+
+const prismaClientSingleton = () => {
+  return new PrismaClient();
 };
 
-// Create a singleton Prisma Client instance
-export const prisma = globalForPrisma.prisma ?? new PrismaClient().$extends(withAccelerate());
+declare global {
+  // eslint-disable-next-line no-var
+  var prisma: undefined | ReturnType<typeof prismaClientSingleton>;
+}
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+const prisma = globalThis.prisma ?? prismaClientSingleton();
+
+export { prisma };
+
+if (process.env.NODE_ENV !== 'production') globalThis.prisma = prisma;
